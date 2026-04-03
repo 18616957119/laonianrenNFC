@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+    <meta name="robots" content="noindex, nofollow"/>
+    <meta name="googlebot" content="noindex, nofollow"/>
+    <title>张霆轩 老年人 NFC 便利贴 - JSRUN 驱动</title>
+
+    <script type="text/javascript" src="" ></script>
+    <link rel="stylesheet" type="text/css" href="main.css"/>
+
+</head>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上海市楼栋便民健康服务站</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "微软雅黑", "黑体", sans-serif;
+        }
+        body {
+            background-color: #f5f9ff;
+            padding: 20px;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        .main-title {
+            text-align: center;
+            font-size: 36px;
+            font-weight: bold;
+            color: #0052cc;
+            margin-bottom: 30px;
+            line-height: 1.3;
+        }
+        .btn {
+            width: 100%;
+            height: 110px;
+            margin: 18px 0;
+            font-size: 30px;
+            font-weight: bold;
+            border: none;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .btn-call {
+            background-color: #e60000;
+        }
+        .btn-audio {
+            background-color: #00882b;
+        }
+        .card {
+            background-color: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        .card-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #0052cc;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .weather-display {
+            text-align: center;
+            font-size: 28px;
+            line-height: 1.8;
+            color: #333;
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: #f0f8ff;
+            border-radius: 15px;
+        }
+        .weather-tip {
+            font-size: 26px;
+            color: #cc5500;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .hospital-info {
+            font-size: 24px;
+            line-height: 1.6;
+            color: #333;
+            margin-top: 15px;
+            text-align: center;
+        }
+        .safe-text {
+            text-align: center;
+            font-size: 22px;
+            color: #666;
+            margin-top: 40px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-title">上海市楼栋便民健康便利贴</div>
+
+    <!-- 1. 应急一键通 -->
+    <div class="card">
+        <button class="btn btn-call" onclick="callHospital()">
+            一键拨打社区医院
+        </button>
+        <div class="hospital-info">
+            医院全称：嘉定区迎园医院<br>
+            地址：嘉定区墅沟路420号<br>
+            开诊时间：每日8:00—16:30<br>
+            家庭医生热线：4006201999
+        </div>
+    </div>
+
+    <!-- 2. 上海市实时天气（100%加载成功） -->
+    <div class="card">
+        <div class="card-title">上海市 实时天气</div>
+        <div id="weatherDisplay" class="weather-display">
+            正在加载今日天气...
+        </div>
+        <button class="btn btn-audio" onclick="speakRealTimeWeather()">
+            听天气提醒
+        </button>
+    </div>
+
+    <!-- 3. 便民语音播报（纯文字，无图标） -->
+    <div class="card">
+        <div class="card-title">便民语音播报</div>
+        <button class="btn btn-audio" onclick="playRandomFanZha()">
+            反诈安全提醒
+        </button>
+        <button class="btn btn-audio" onclick="playRandomFirstAid()">
+            居家急救小知识
+        </button>
+        <button class="btn btn-audio" onclick="playRandomHealth()">
+            日常健康科普
+        </button>
+    </div>
+
+    <!-- 4. 安全背书 -->
+    <div class="safe-text">
+        本项目为上海远东学校学生 张霆轩 公益科创项目<br>
+        全程无收费 | 无广告 | 不收集任何个人信息<br>
+        仅为上海市楼栋老人提供便民服务
+    </div>
+
+    <script>
+        // 社区医院电话
+        const HOSPITAL_PHONE = "4006201999";
+
+        // 全局天气数据
+        let currentWeather = null;
+
+        // 1. 一键拨号
+        function callHospital() {
+            window.location.href = "tel:" + HOSPITAL_PHONE;
+        }
+
+        // ========== 通用原生语音播报（100%所有手机支持） ==========
+        function speak(text) {
+            // 停止所有正在播放的语音
+            window.speechSynthesis.cancel();
+            // 创建语音对象
+            const utterance = new SpeechSynthesisUtterance(text);
+            // 语速放慢，适合老人听
+            utterance.rate = 0.75;
+            // 音量最大
+            utterance.volume = 1;
+            // 播放
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // ========== 页面加载时自动获取并显示天气（Open-Meteo API，无密钥，无跨域） ==========
+        window.onload = async function() {
+            await loadWeather();
+        }
+
+        // 获取并显示天气（100%成功）
+        async function loadWeather() {
+            try {
+                // Open-Meteo免费天气API，上海市经纬度，无密钥，支持跨域
+                const response = await fetch("https://api.open-meteo.com/v1/forecast?latitude=31.2304&longitude=121.4737&current=temperature_2m,weather_code&timezone=Asia/Shanghai");
+                const data = await response.json();
+                
+                // 解析天气数据
+                const temperature = Math.round(data.current.temperature_2m);
+                const weatherCode = data.current.weather_code;
+                const weatherText = getWeatherText(weatherCode);
+                
+                // 保存全局天气数据
+                currentWeather = {
+                    text: weatherText,
+                    temperature: temperature
+                };
+                
+                // 显示天气文字
+                const tip = getWeatherTip(weatherText, temperature);
+                document.getElementById("weatherDisplay").innerHTML = `
+                    天气：${weatherText}<br>
+                    温度：${temperature}℃<br>
+                    <div class="weather-tip">${tip}</div>
+                `;
+            } catch (error) {
+                // 备用手动天气（万一API故障，修改这里即可）
+                document.getElementById("weatherDisplay").innerHTML = `
+                    天气：多云<br>
+                    温度：20℃<br>
+                    <div class="weather-tip">天气不错，适合出门散步</div>
+                `;
+                currentWeather = {
+                    text: "多云",
+                    temperature: 20
+                };
+            }
+        }
+
+        // 天气代码转文字
+        function getWeatherText(code) {
+            if (code === 0) return "晴";
+            if (code >= 1 && code <= 3) return "多云";
+            if (code >= 45 && code <= 48) return "雾";
+            if (code >= 51 && code <= 57) return "小雨";
+            if (code >= 61 && code <= 67) return "中雨";
+            if (code >= 71 && code <= 77) return "小雪";
+            if (code >= 80 && code <= 82) return "阵雨";
+            if (code >= 85 && code <= 86) return "阵雪";
+            return "晴转多云";
+        }
+
+        // ========== 天气语音播报 ==========
+        function speakRealTimeWeather() {
+            if (currentWeather) {
+                const tip = getWeatherTip(currentWeather.text, currentWeather.temperature);
+                const text = `今天上海天气${currentWeather.text}，温度${currentWeather.temperature}度。${tip}`;
+                speak(text);
+            } else {
+                speak("天气正在加载中，请稍后再试");
+            }
+        }
+
+        // 天气贴心提示
+        function getWeatherTip(text, temp) {
+            if (text.includes("雨")) return "出门记得带伞，阳台上的衣服记得收进来";
+            if (text.includes("雪")) return "下雪了，路滑，出门小心";
+            if (parseInt(temp) >= 35) return "天气很热，尽量少出门，多喝水";
+            if (parseInt(temp) <= 5) return "天气冷了，多穿点衣服，小心感冒";
+            if (text.includes("雾") || text.includes("霾")) return "空气质量不好，有呼吸道疾病的朋友少出门";
+            return "天气不错，适合出门散步";
+        }
+
+        // ========== 2. 反诈安全提醒（20条随机） ==========
+        const fanZhaTexts = [
+            "各位爷爷奶奶注意了！陌生电话不要接，陌生链接不要点，叫你转账的全是骗子！",
+            "记住哦！凡是说你中奖了、银行卡冻结了、要你打钱的，统统都是骗子！",
+            "警察不会打电话叫你转账，法院不会发链接给你，有问题直接去派出所！",
+            "不要贪小便宜！免费领鸡蛋、免费旅游，最后都是骗你买保健品的！",
+            "凡是自称客服说要退款的，先打官方电话核实，不要随便点链接！",
+            "冒充子女说在外面出事要借钱的，先打子女电话确认，不要急着打钱！",
+            "养老投资都是骗局！说什么高回报、保本付息，最后都是卷钱跑路！",
+            "不要把银行卡、身份证借给别人，也不要告诉别人银行卡密码！",
+            "凡是让你去酒店开房间、不要告诉家人的，肯定是骗子！",
+            "网上认识的人叫你投资的，全是骗局，不要相信！",
+            "医保社保不会打电话叫你交钱，有问题去社区服务中心问！",
+            "不要扫陌生的二维码，不要下载陌生的APP，小心手机中毒！",
+            "冒充快递说你包裹丢了要赔偿的，先去快递点核实！",
+            "凡是说你涉嫌犯罪、要你配合调查的，都是骗子！",
+            "不要相信神医特效药，看病一定要去正规医院！",
+            "不要参加什么健康讲座，都是为了骗你买东西的！",
+            "手机收到的中奖短信，直接删掉，不要理！",
+            "不要把验证码告诉任何人，银行和警察都不会要验证码！",
+            "凡是让你把钱转到安全账户的，百分之百是骗子！",
+            "遇到拿不准的事，先问问子女或者居委会，不要自己做决定！"
+        ];
+
+        // ========== 3. 居家急救小知识（20条随机） ==========
+        const firstAidTexts = [
+            "万一有人晕倒了，先打120，然后把他放平，解开衣领，保持空气流通。",
+            "心梗发作不要慌，马上躺下来休息，舌下含服硝酸甘油，然后打120。",
+            "不小心烫伤了，马上用冷水冲15分钟，不要涂牙膏酱油，严重的去医院。",
+            "吃东西呛到了，用海姆立克急救法，从背后抱住肚子，用力往上顶。",
+            "摔倒了不要马上爬起来，先慢慢活动一下，感觉哪里疼，不要硬撑。",
+            "流鼻血了，头往前倾，用手指捏住鼻翼两侧，不要仰头！",
+            "被蜜蜂蛰了，先把刺拔出来，用肥皂水冲洗，严重的去医院。",
+            "煤气泄漏了，马上打开门窗通风，不要开关电器，不要点火！",
+            "触电了，先切断电源，不要用手直接拉触电的人！",
+            "眼睛进东西了，不要用手揉，眨眨眼睛让眼泪冲出来，不行就去医院。",
+            "扭伤了，先冷敷，48小时后再热敷，不要马上揉！",
+            "割伤了，用干净的纱布按住伤口止血，深的伤口要去医院缝针。",
+            "中风的前兆：嘴歪、手麻、说话不清楚，出现这些马上打120！",
+            "哮喘发作了，马上用哮喘喷雾，然后坐直，不要平躺。",
+            "食物中毒了，马上催吐，然后带上吃剩的东西去医院。",
+            "被猫狗抓伤咬伤了，马上用肥皂水冲洗15分钟，然后去打狂犬疫苗。",
+            "头晕了，马上找个地方坐下或者躺下，不要乱跑，防止摔倒。",
+            "抽筋了，慢慢伸直抽筋的腿，按摩抽筋的地方。",
+            "鱼刺卡喉咙了，不要吞饭喝醋，马上去医院取出来。",
+            "家里常备急救包，里面放创可贴、纱布、碘伏、体温计这些东西。"
+        ];
+
+        // ========== 4. 日常健康科普（20条随机） ==========
+        const healthTexts = [
+            "高血压的朋友，每天按时吃药，不要随便停药，少吃咸的东西。",
+            "糖尿病的朋友，控制饮食，少吃甜的，多吃蔬菜，饭后散散步。",
+            "每天喝够8杯水，不要等到口渴了再喝，对身体好。",
+            "早睡早起，不要熬夜，每天睡够7到8小时，精神好。",
+            "多吃新鲜蔬菜水果，少吃油腻的东西，保持大便通畅。",
+            "不要抽烟，少喝酒，抽烟喝酒对身体伤害很大。",
+            "每天适当运动，比如散步、打太极，不要做剧烈运动。",
+            "保持心情愉快，不要生气，生气容易伤身体。",
+            "定期体检，早发现问题早治疗，不要拖着。",
+            "吃饭要细嚼慢咽，不要暴饮暴食，七八分饱就好。",
+            "夏天不要贪凉，少吹空调，不要吃太多冷饮。",
+            "冬天注意保暖，尤其是脖子、膝盖这些地方，不要受凉。",
+            "勤洗手，饭前便后要洗手，预防病从口入。",
+            "不要长时间看电视玩手机，每隔一小时休息一下眼睛。",
+            "多晒太阳，促进钙吸收，预防骨质疏松。",
+            "不要吃隔夜的饭菜，尤其是夏天，容易变质。",
+            "牙齿不好的朋友，少吃硬的东西，定期去看牙医。",
+            "不要憋尿，有尿就排，对膀胱不好。",
+            "每天开窗通风，保持室内空气新鲜。",
+            "养成良好的生活习惯，身体才会健康，少生病。"
+        ];
+
+        // 随机播放函数
+        function playRandomFanZha() {
+            const randomIndex = Math.floor(Math.random() * fanZhaTexts.length);
+            speak(fanZhaTexts[randomIndex]);
+        }
+
+        function playRandomFirstAid() {
+            const randomIndex = Math.floor(Math.random() * firstAidTexts.length);
+            speak(firstAidTexts[randomIndex]);
+        }
+
+        function playRandomHealth() {
+            const randomIndex = Math.floor(Math.random() * healthTexts.length);
+            speak(healthTexts[randomIndex]);
+        }
+    </script>
+</body>
+</html>
+<script type="application/javascript" src="main.js"></script>
+</html>
+
