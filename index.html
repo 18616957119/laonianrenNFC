@@ -1,21 +1,9 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
-    <meta name="robots" content="noindex, nofollow"/>
-    <meta name="googlebot" content="noindex, nofollow"/>
-    <title>张霆轩 老年人 NFC 便利贴 - JSRUN 驱动</title>
-
-    <script type="text/javascript" src="" ></script>
-    <link rel="stylesheet" type="text/css" href="main.css"/>
-
-</head>
-<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>上海市楼栋便民健康服务站</title>
+    <title>上海市楼栋便民健康便利贴</title>
     <style>
         * {
             margin: 0;
@@ -34,8 +22,21 @@
             font-size: 36px;
             font-weight: bold;
             color: #0052cc;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             line-height: 1.3;
+        }
+        .btn-sound {
+            width: 100%;
+            height: 120px;
+            margin: 18px 0;
+            font-size: 32px;
+            font-weight: bold;
+            border: none;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            background-color: #ff9900;
         }
         .btn {
             width: 100%;
@@ -104,6 +105,11 @@
 <body>
     <div class="main-title">上海市楼栋便民健康便利贴</div>
 
+    <!-- 必点：开启声音按钮（解决安卓没声音问题） -->
+    <button id="soundBtn" class="btn-sound" onclick="enableSound()">
+        请先点击这里开启声音
+    </button>
+
     <!-- 1. 应急一键通 -->
     <div class="card">
         <button class="btn btn-call" onclick="callHospital()">
@@ -117,7 +123,7 @@
         </div>
     </div>
 
-    <!-- 2. 上海市实时天气（100%加载成功） -->
+    <!-- 2. 上海市实时天气 -->
     <div class="card">
         <div class="card-title">上海市 实时天气</div>
         <div id="weatherDisplay" class="weather-display">
@@ -128,7 +134,7 @@
         </button>
     </div>
 
-    <!-- 3. 便民语音播报（纯文字，无图标） -->
+    <!-- 3. 便民语音播报 -->
     <div class="card">
         <div class="card-title">便民语音播报</div>
         <button class="btn btn-audio" onclick="playRandomFanZha()">
@@ -155,14 +161,35 @@
 
         // 全局天气数据
         let currentWeather = null;
+        let soundEnabled = false;
+
+        // ========== 关键：开启声音（解决安卓没声音问题） ==========
+        function enableSound() {
+            // 先播放一个空声音，激活浏览器的声音权限
+            const utterance = new SpeechSynthesisUtterance("声音已开启");
+            utterance.rate = 0.75;
+            utterance.volume = 1;
+            window.speechSynthesis.speak(utterance);
+            
+            soundEnabled = true;
+            // 把开启声音按钮变成灰色，提示已开启
+            document.getElementById("soundBtn").style.backgroundColor = "#999";
+            document.getElementById("soundBtn").innerText = "声音已开启，可以使用其他功能了";
+        }
 
         // 1. 一键拨号
         function callHospital() {
             window.location.href = "tel:" + HOSPITAL_PHONE;
         }
 
-        // ========== 通用原生语音播报（100%所有手机支持） ==========
+        // ========== 通用原生语音播报（安卓/iOS都兼容） ==========
         function speak(text) {
+            // 检查是否先开启了声音
+            if (!soundEnabled) {
+                alert("请先点击顶部的「开启声音」按钮！");
+                return;
+            }
+            
             // 停止所有正在播放的语音
             window.speechSynthesis.cancel();
             // 创建语音对象
@@ -175,30 +202,26 @@
             window.speechSynthesis.speak(utterance);
         }
 
-        // ========== 页面加载时自动获取并显示天气（Open-Meteo API，无密钥，无跨域） ==========
+        // ========== 页面加载时自动获取并显示天气 ==========
         window.onload = async function() {
             await loadWeather();
         }
 
-        // 获取并显示天气（100%成功）
+        // 获取并显示天气
         async function loadWeather() {
             try {
-                // Open-Meteo免费天气API，上海市经纬度，无密钥，支持跨域
                 const response = await fetch("https://api.open-meteo.com/v1/forecast?latitude=31.2304&longitude=121.4737&current=temperature_2m,weather_code&timezone=Asia/Shanghai");
                 const data = await response.json();
                 
-                // 解析天气数据
                 const temperature = Math.round(data.current.temperature_2m);
                 const weatherCode = data.current.weather_code;
                 const weatherText = getWeatherText(weatherCode);
                 
-                // 保存全局天气数据
                 currentWeather = {
                     text: weatherText,
                     temperature: temperature
                 };
                 
-                // 显示天气文字
                 const tip = getWeatherTip(weatherText, temperature);
                 document.getElementById("weatherDisplay").innerHTML = `
                     天气：${weatherText}<br>
@@ -206,7 +229,6 @@
                     <div class="weather-tip">${tip}</div>
                 `;
             } catch (error) {
-                // 备用手动天气（万一API故障，修改这里即可）
                 document.getElementById("weatherDisplay").innerHTML = `
                     天气：多云<br>
                     温度：20℃<br>
@@ -343,6 +365,3 @@
     </script>
 </body>
 </html>
-<script type="application/javascript" src="main.js"></script>
-</html>
-
